@@ -1,0 +1,182 @@
+{
+  "name": "high_backend_session_usage_in_haproxy",
+  "description": "High backend session usage in HAProxy is an incident that occurs when the amount of backend sessions in use for a host reaches a detection threshold of 80%. When this happens, HAProxy denies additional clients until resource consumption drops, which could result in service disruptions. This incident may require modifying HAProxy's configuration to allow more sessions or migrating the HAProxy server to a bigger box.",
+  "params": [
+    {
+      "name": "PATH_TO_HAPROXY_LOG_FILE",
+      "value": ""
+    },
+    {
+      "name": "NAME_OF_THE_BACKEND",
+      "value": ""
+    },
+    {
+      "name": "PATH_TO_HAPROXY_CONFIG_FILE",
+      "value": ""
+    },
+    {
+      "name": "NEW_VALUE_FOR_MAXCONN_PARAMETER",
+      "value": ""
+    },
+    {
+      "name": "HAPROXY_PROCESS_ID",
+      "value": ""
+    },
+    {
+      "name": "PATH_TO_HAPROXY_CFG",
+      "value": ""
+    },
+    {
+      "name": "HOST_NAME",
+      "value": ""
+    },
+    {
+      "name": "K8S_CLUSTER_NAME",
+      "value": ""
+    },
+    {
+      "name": "NAMESPACE",
+      "value": ""
+    }
+  ],
+  "cells": [
+    {
+      "name": "cell_1",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## High backend session usage in HAProxy\nHigh backend session usage in HAProxy is an incident that occurs when the amount of backend sessions in use for a host reaches a detection threshold of 80%. When this happens, HAProxy denies additional clients until resource consumption drops, which could result in service disruptions. This incident may require modifying HAProxy's configuration to allow more sessions or migrating the HAProxy server to a bigger box."
+    },
+    {
+      "name": "cell_2",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the status of HAProxy"
+    },
+    {
+      "name": "cell_3",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `systemctl status haproxy`"
+    },
+    {
+      "name": "cell_4",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the current backend session usage for a specific host"
+    },
+    {
+      "name": "cell_5",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `echo \"show stat\" | socat /run/haproxy/admin.sock stdio | awk -F',' '{print $1,$2,$5}'`"
+    },
+    {
+      "name": "cell_6",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the HAProxy configuration file"
+    },
+    {
+      "name": "cell_7",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `less /etc/haproxy/haproxy.cfg`"
+    },
+    {
+      "name": "cell_8",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the current resource consumption of the HAProxy server"
+    },
+    {
+      "name": "cell_9",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `top`"
+    },
+    {
+      "name": "cell_10",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the current network connections"
+    },
+    {
+      "name": "cell_11",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `netstat -anp | grep ${HAPROXY_PROCESS_ID}`"
+    },
+    {
+      "name": "cell_12",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Multiple misbehaving clients that are not releasing backend sessions after use, causing a backlog of sessions."
+    },
+    {
+      "name": "cell_13",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_check_backend_session_usage($PATH_TO_HAPROXY_LOG_FILE, $NAME_OF_THE_BACKEND, $PATH_TO_HAPROXY_CFG)"
+    },
+    {
+      "name": "cell_14",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Set the path to the HAProxy configuration file"
+    },
+    {
+      "name": "cell_15",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `CONFIG_FILE=${PATH_TO_HAPROXY_CONFIG_FILE}`"
+    },
+    {
+      "name": "cell_16",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Set the new value for maxconn parameter"
+    },
+    {
+      "name": "cell_17",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `NEW_MAXCONN=${NEW_VALUE_FOR_MAXCONN_PARAMETER}`"
+    },
+    {
+      "name": "cell_18",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Replace the old maxconn parameter with the new value in the configuration file"
+    },
+    {
+      "name": "cell_19",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `sed -i \"s/^maxconn.*$/maxconn $NEW_MAXCONN/\" $CONFIG_FILE`"
+    },
+    {
+      "name": "cell_20",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Restart the HAProxy service to apply the changes"
+    },
+    {
+      "name": "cell_21",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `systemctl restart haproxy.service`"
+    },
+    {
+      "name": "cell_22",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if the service is running"
+    },
+    {
+      "name": "cell_23",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_restart_haproxy()"
+    }
+  ]
+}
